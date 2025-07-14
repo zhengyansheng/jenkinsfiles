@@ -29,6 +29,17 @@ pipeline {
     // 执行的节点
     agent any
 
+    // 运行时工具
+    tools {
+      go 'go123'
+    }
+    
+    // 环境变量
+    environment {
+      GOPROXY = "https://goproxy.cn,direct"
+    }
+
+
     // 参数
     parameters {
         choice(name: 'action', choices: ['构建', '打包', '部署', '回滚'], description: '操作的指令')
@@ -82,10 +93,12 @@ pipeline {
                         error "服务不存在: user-service"
                     }
 
-                    println("checkout code")
-                    println("${info.codeType}")
-                    println("${params.branch}")
-                    checkoutCode("${info.codeType}", "${params.branch}")
+                    checkoutCode("${info.repoUrl}", "${params.branch}")
+
+                    sh '''
+                    ls -l
+                    pwd
+                    '''
                     
                 }
             }
@@ -97,7 +110,8 @@ pipeline {
 
                 script {
 
-                    println("build")
+                    sh '''go mod tidy
+                    go build -o app main.go'''
 
                 }
             }
