@@ -10,15 +10,58 @@ def setBuildDisplayName() {
 }
 
 // CheckoutCode 克隆代码
-def checkoutCode(gitUrl, branch) {
+def checkoutCode(gitUrl, branch, credentialsId) {
     // Clean workspace before checking out code
     deleteDir()
     checkout scmGit(
-        // userRemoteConfigs: [[credentialsId:  'git_pull_secret', url: gitUrl]],
-        userRemoteConfigs: [[credentialsId:  'macmacmac', url: gitUrl]],
-//         userRemoteConfigs: [[url: gitUrl]],
+        userRemoteConfigs: [[credentialsId:  credentialsId, url: gitUrl]],
         branches: [[name: branch]]
     )
+}
+
+// executeBuild 执行构建
+def executeBuild(codeType, serviceName, envName) {
+    switch(codeType.toLowerCase()) {
+        case 'java':
+            buildJava()
+            break
+            
+        case 'nodejs':
+            buildNodejs()
+            break
+            
+        case 'go':
+            buildGolang()
+            break
+            
+        default:
+            error "不支持的构建类型: ${codeType}"
+    }
+}
+
+def buildPushImage() {
+    println("build push image")
+}
+
+def deployToCluster() {
+    println("deployment to cluster")
+}
+
+def rollbackFromCluster() {
+    println("rollback from cluster")
+}
+
+
+def buildJava() {
+    println("java")
+}
+
+def buildNodejs() {
+    println("nodejs")
+}
+
+def buildGolang() {
+    println("go")
 }
 
 
@@ -37,6 +80,8 @@ pipeline {
     // 环境变量
     environment {
       GOPROXY = "https://goproxy.cn,direct"
+      // 仓库证书
+      REPO_CREDENTID = "macmacmac"
     }
 
 
@@ -48,9 +93,10 @@ pipeline {
 
     // 阶段
     stages {
-        stage('初始化/ initialization') {
+        stage('🔧 初始化 | Initialization') {
+
             steps {
-                echo '初始化'
+                echo '------------------------------------------初始化'
                 
                 wrap([$class: 'BuildUser']) {
                     script {
@@ -67,12 +113,16 @@ pipeline {
             }
         }
 
-        stage('检出代码/ checkout code') {
+        stage('📥 检出代码 | Checkout Code') {
+            when {
+                expression { params.action == '构建' }
+            }
             steps {
-                echo '检出代码'
+                echo '------------------------------------------检出代码'
                 
                 script {
 
+                    // TODO: 后期使用共享库的方式
                     // 定义变量和函数
                     def serviceMap = [
                         "shark": [
@@ -85,15 +135,20 @@ pipeline {
                         return serviceMap.get(serviceName)
                     }
 
+
+
                     def info = getServiceInfo("shark")
                     if (info) {
-                        echo "代码类型: ${info.codeType}"
-                        echo "仓库地址: ${info.repoUrl}"
-                    } else {
-                        error "服务不存在: user-service"
-                    }
+                        // echo "代码类型: ${info.codeType}"
+                        // echo "仓库地址: ${info.repoUrl}"
+                        checkoutCode(info.repoUrl, params.branch, env.REPO_CREDENTID)
 
-                    checkoutCode("${info.repoUrl}", "${params.branch}")
+                        // 赋值 下文取
+                        env.CODE_TYPE = info.codeType
+                        // env.SERVICE_NAME = "shark"
+                    } else {
+                        error "服务不存在: shark"
+                    }
 
                     sh '''
                     ls -l
@@ -104,38 +159,63 @@ pipeline {
             }
         }
 
-        stage('编译/ build') {
+        stage('⚙️ 编译 | Build') {
+            when {
+                expression { params.action == '构建' }
+            }
             steps {
-                echo '编译'
+                echo '------------------------------------------编译'
 
                 script {
 
-                    sh '''go mod tidy
-                    go build -o app main.go'''
+                    // def codeType = env.CODE_TYPE  // env 是 Jenkins 内置环境变量对象
+                    // println(codeType)
+                    executeBuild(env.CODE_TYPE, "shark", "dev")
 
                 }
             }
         }
 
-        stage('构建和推送镜像/ build and push image') {
+        stage('🐳 构建推送镜像 | Build & Push Image') {
+            when {
+                expression { params.action == '打包' }
+            }
             steps {
-                echo '构建和推送镜像'
+                echo '------------------------------------------构建和推送镜像'
 
                 script {
 
-                    println("build and push image")
+                    buildPushImage()
 
                 }
             }
         }
         
-        stage('部署/ deployment') {
+        stage('🚀 部署 | Deployment') {
+            when {
+                expression { params.action == '部署' }
+            }
             steps {
-                echo '部署'
+                echo '------------------------------------------部署'
 
                 script {
 
-                    println("deployment")
+                    deployToCluster()
+
+                }
+            }
+        }
+
+        stage('🚀 回滚 | Rollback') {
+            when {
+                expression { params.action == '回滚' }
+            }
+            steps {
+                echo '------------------------------------------回滚'
+
+                script {
+
+                    rollbackFromCluster()
 
                 }
             }
