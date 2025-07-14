@@ -10,15 +10,54 @@ def setBuildDisplayName() {
 }
 
 // CheckoutCode 克隆代码
-def checkoutCode(gitUrl, branch) {
+def checkoutCode(gitUrl, branch, credentialsId) {
     // Clean workspace before checking out code
     deleteDir()
     checkout scmGit(
-        // userRemoteConfigs: [[credentialsId:  'git_pull_secret', url: gitUrl]],
-        userRemoteConfigs: [[credentialsId:  'macmacmac', url: gitUrl]],
-//         userRemoteConfigs: [[url: gitUrl]],
+        userRemoteConfigs: [[credentialsId:  credentialsId, url: gitUrl]],
         branches: [[name: branch]]
     )
+}
+
+// executeBuild 执行构建
+def executeBuild(codeType, serviceName, envName) {
+    switch(codeType.toLowerCase()) {
+        case 'java':
+            buildJava()
+            break
+            
+        case 'nodejs':
+            buildNodejs()
+            break
+            
+        case 'go':
+            buildGolang()
+            break
+            
+        default:
+            error "不支持的构建类型: ${codeType}"
+    }
+}
+
+def buildPushImage() {
+    println("build push image")
+}
+
+def deployToCluster() {
+    println("deployment")
+}
+
+
+def buildJava() {
+    println("java")
+}
+
+def buildNodejs() {
+    println("nodejs")
+}
+
+def buildGolang() {
+    println("go")
 }
 
 
@@ -29,6 +68,19 @@ pipeline {
     // 执行的节点
     agent any
 
+    // 运行时工具
+    tools {
+      go 'go123'
+    }
+    
+    // 环境变量
+    environment {
+      GOPROXY = "https://goproxy.cn,direct"
+      // 仓库证书
+      REPO_CREDENTID = "macmacmac"
+    }
+
+
     // 参数
     parameters {
         choice(name: 'action', choices: ['构建', '打包', '部署', '回滚'], description: '操作的指令')
@@ -37,7 +89,7 @@ pipeline {
 
     // 阶段
     stages {
-        stage('初始化/ initialization') {
+        stage('🔧 初始化 | Initialization') {
             steps {
                 echo '初始化'
                 
@@ -56,12 +108,13 @@ pipeline {
             }
         }
 
-        stage('检出代码/ checkout code') {
+        stage('📥 检出代码 | Checkout Code') {
             steps {
                 echo '检出代码'
                 
                 script {
 
+                    // TODO: 后期使用共享库的方式
                     // 定义变量和函数
                     def serviceMap = [
                         "shark": [
@@ -74,54 +127,63 @@ pipeline {
                         return serviceMap.get(serviceName)
                     }
 
+
+
                     def info = getServiceInfo("shark")
                     if (info) {
-                        echo "代码类型: ${info.codeType}"
-                        echo "仓库地址: ${info.repoUrl}"
+                        // echo "代码类型: ${info.codeType}"
+                        // echo "仓库地址: ${info.repoUrl}"
+                        checkoutCode(info.repoUrl, params.branch, env.REPO_CREDENTID)
+
+                        // 赋值 下文取
+                        env.CODE_TYPE = info.codeType
+                        // env.SERVICE_NAME = "shark"
                     } else {
-                        error "服务不存在: user-service"
+                        error "服务不存在: shark"
                     }
 
-                    println("checkout code")
-                    println("${info.codeType}")
-                    println("${params.branch}")
-                    checkoutCode("${info.codeType}", "${params.branch}")
+                    sh '''
+                    ls -l
+                    pwd
+                    '''
                     
                 }
             }
         }
 
-        stage('编译/ build') {
+        stage('⚙️ 编译 | Build') {
             steps {
                 echo '编译'
 
                 script {
 
-                    println("build")
+                    // def codeType = env.CODE_TYPE  // env 是 Jenkins 内置环境变量对象
+                    // println(codeType)
+                    executeBuild(env.CODE_TYPE, "shark", "dev")
 
                 }
             }
         }
 
-        stage('构建和推送镜像/ build and push image') {
+        stage('🐳 构建推送镜像 | Build & Push Image') {
             steps {
                 echo '构建和推送镜像'
 
                 script {
 
-                    println("build and push image")
+                    buildPushImage()
 
                 }
             }
         }
         
-        stage('部署/ deployment') {
+        stage('🚀 部署 | Deployment') {
             steps {
                 echo '部署'
 
                 script {
 
-                    println("deployment")
+                    deployToCluster()
 
                 }
             }
