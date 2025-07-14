@@ -15,7 +15,8 @@ def checkoutCode(gitUrl, branch) {
     deleteDir()
     checkout scmGit(
         // userRemoteConfigs: [[credentialsId:  'git_pull_secret', url: gitUrl]],
-        userRemoteConfigs: [[url: gitUrl]],
+        userRemoteConfigs: [[credentialsId:  'windows-admin-ssh-private', url: gitUrl]],
+//         userRemoteConfigs: [[url: gitUrl]],
         branches: [[name: branch]]
     )
 }
@@ -65,7 +66,7 @@ pipeline {
                     def serviceMap = [
                         "shark": [
                             "codeType": "go",
-                            "repoUrl": "https://github.com/zhengyansheng/httpserver2.git"
+                            "repoUrl": "git@github.com:zhengyansheng/httpserver2.git"
                         ]
                     ]
 
