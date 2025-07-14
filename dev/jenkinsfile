@@ -44,7 +44,11 @@ def buildPushImage() {
 }
 
 def deployToCluster() {
-    println("deployment")
+    println("deployment to cluster")
+}
+
+def rollbackFromCluster() {
+    println("rollback from cluster")
 }
 
 
@@ -90,8 +94,9 @@ pipeline {
     // 阶段
     stages {
         stage('🔧 初始化 | Initialization') {
+
             steps {
-                echo '初始化'
+                echo '------------------------------------------初始化'
                 
                 wrap([$class: 'BuildUser']) {
                     script {
@@ -109,8 +114,11 @@ pipeline {
         }
 
         stage('📥 检出代码 | Checkout Code') {
+            when {
+                expression { params.action == '构建' }
+            }
             steps {
-                echo '检出代码'
+                echo '------------------------------------------检出代码'
                 
                 script {
 
@@ -152,8 +160,11 @@ pipeline {
         }
 
         stage('⚙️ 编译 | Build') {
+            when {
+                expression { params.action == '构建' }
+            }
             steps {
-                echo '编译'
+                echo '------------------------------------------编译'
 
                 script {
 
@@ -166,8 +177,11 @@ pipeline {
         }
 
         stage('🐳 构建推送镜像 | Build & Push Image') {
+            when {
+                expression { params.action == '打包' }
+            }
             steps {
-                echo '构建和推送镜像'
+                echo '------------------------------------------构建和推送镜像'
 
                 script {
 
@@ -178,12 +192,30 @@ pipeline {
         }
         
         stage('🚀 部署 | Deployment') {
+            when {
+                expression { params.action == '部署' }
+            }
             steps {
-                echo '部署'
+                echo '------------------------------------------部署'
 
                 script {
 
                     deployToCluster()
+
+                }
+            }
+        }
+
+        stage('🚀 回滚 | Rollback') {
+            when {
+                expression { params.action == '回滚' }
+            }
+            steps {
+                echo '------------------------------------------回滚'
+
+                script {
+
+                    rollbackFromCluster()
 
                 }
             }
