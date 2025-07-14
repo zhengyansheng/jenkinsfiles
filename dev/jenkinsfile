@@ -1,4 +1,5 @@
 
+
 // setBuildDisplayName 设置构建显示的名称
 def setBuildDisplayName() {
     // 定义日期时间格式：年-月-日 时:分:秒
@@ -14,7 +15,8 @@ def checkoutCode(gitUrl, branch) {
     deleteDir()
     checkout scmGit(
         // userRemoteConfigs: [[credentialsId:  'git_pull_secret', url: gitUrl]],
-        userRemoteConfigs: [[url: gitUrl]],
+        userRemoteConfigs: [[credentialsId:  'windows-admin-ssh-private', url: gitUrl]],
+//         userRemoteConfigs: [[url: gitUrl]],
         branches: [[name: branch]]
     )
 }
@@ -30,9 +32,7 @@ pipeline {
     // 参数
     parameters {
         choice(name: 'action', choices: ['构建', '打包', '部署', '回滚'], description: '操作的指令')
-        choice(name: 'branch', choices: ['dev', 'qa', 'uat', 'master', 'main'], description: '分支或Tag名称')
-//         choice(name: 'env', choices: ['dev', 'test', 'test2', 'test3', 'uat', 'prod'], description: '运行的环境')
-//         choice(name: 'codeType', choices: ['java', 'nodejs', 'common', 'go', 'python'], description: '代码类型')
+        choice(name: 'branch', choices: ['master', 'qa', 'uat', 'dev'], description: '分支或Tag名称')
     }
 
     // 阶段
@@ -61,9 +61,32 @@ pipeline {
                 echo '检出代码'
                 
                 script {
-                
+
+                    // 定义变量和函数
+                    def serviceMap = [
+                        "shark": [
+                            "codeType": "go",
+//                             "repoUrl": "https://github.com/zhengyansheng/httpserver2.git"
+                            "repoUrl": "git@github.com:zhengyansheng/httpserver2.git"
+                        ]
+                    ]
+
+                    def getServiceInfo = { String serviceName ->
+                        return serviceMap.get(serviceName)
+                    }
+
+                    def info = getServiceInfo("shark")
+                    if (info) {
+                        echo "代码类型: ${info.codeType}"
+                        echo "仓库地址: ${info.repoUrl}"
+                    } else {
+                        error "服务不存在: user-service"
+                    }
+
                     println("checkout code")
-//                     checkoutCode()
+                    println("${info.codeType}")
+                    println("${params.branch}")
+                    checkoutCode("${info.codeType}", "${params.branch}")
                     
                 }
             }
@@ -133,4 +156,3 @@ pipeline {
 
 
 }
-
