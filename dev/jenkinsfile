@@ -66,7 +66,6 @@ pipeline {
                     def serviceMap = [
                         "shark": [
                             "codeType": "go",
-//                             "repoUrl": "https://github.com/zhengyansheng/httpserver2.git"
                             "repoUrl": "git@github.com:zhengyansheng/httpserver2.git"
                         ]
                     ]
